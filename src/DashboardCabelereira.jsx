@@ -1,28 +1,102 @@
 import React, { useState, useEffect } from 'react';
+// IMPORTAÇÕES DO FIREBASE
+import { db } from './firebase';
+import { collection, query, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 
 export default function DashboardCabeleireira({ onLogout }) {
   const [activeModal, setActiveModal] = useState(null); 
   const [selectedDate, setSelectedDate] = useState(null);
 
-  // --- ESTADOS VAZIOS PARA O BANCO DE DADOS ---
-  const [faturamento, setFaturamento] = useState(0);
-  const [agendamentos, setAgendamentos] = useState([]);
-  const [historico, setHistorico] = useState([]);
+  // --- ESTADOS LIGADOS AO BANCO DE DADOS ---
+  const [faturamento, setFaturamento] = useState(0); // Faturamento de Hoje
+  const [agendamentos, setAgendamentos] = useState([]); // Agendamentos de Hoje
+  const [historico, setHistorico] = useState([]); // Todos os concluídos
   const [diasComAgendamento, setDiasComAgendamento] = useState([]);
 
-  // DICA: Use este useEffect para buscar os dados do seu banco quando a tela carregar
+  const dataAtual = new Date();
+  const diaAtual = dataAtual.getDate();
+
+  // --- BUSCAR DADOS DO FIREBASE EM TEMPO REAL ---
   useEffect(() => {
-    // Exemplo:
-    // buscarAgendamentosDoBanco().then(dados => setAgendamentos(dados));
-    // buscarHistoricoDoBanco().then(dados => setHistorico(dados));
-  }, []);
+    const q = query(collection(db, "agendamentos"));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const agsDoDia = [];
+      const histBanco = [];
+      const diasMarcados = [];
+      let faturamentoHojeCalculado = 0;
+
+      snapshot.forEach((docSnap) => {
+        const dados = docSnap.data();
+        const id = docSnap.id;
+        
+        // Se o cliente não tiver preenchido o nome, usamos o começo do email dele
+        const nomeCliente = dados.clienteEmail ? dados.clienteEmail.split('@')[0] : 'Cliente';
+
+        // Formata o objeto para a tela ler facilmente
+        const ag = {
+          id: id,
+          cliente: nomeCliente,
+          dia: dados.dia,
+          hora: dados.horaInicial,
+          servico: dados.servicos,
+          valor: dados.valor,
+          status: dados.status
+        };
+
+        // Adiciona a bolinha rosa no dia do calendário (evita duplicar)
+        if (!diasMarcados.includes(ag.dia)) {
+          diasMarcados.push(ag.dia);
+        }
+
+        // Separa apenas os agendamentos do DIA DE HOJE
+        if (ag.dia === diaAtual) {
+          agsDoDia.push(ag);
+          // Se já foi concluído hoje, entra no faturamento do dia
+          if (ag.status === 'concluido') {
+            faturamentoHojeCalculado += ag.valor;
+          }
+        }
+
+        // Histórico Geral (Faturamento total de todos os dias)
+        if (ag.status === 'concluido') {
+          histBanco.push({
+            id: id,
+            cliente: ag.cliente,
+            data: `Dia ${ag.dia}`,
+            valor: ag.valor
+          });
+        }
+      });
+
+      // Ordena os agendamentos do dia pela hora (mais cedo primeiro)
+      agsDoDia.sort((a, b) => a.hora.localeCompare(b.hora));
+
+      setAgendamentos(agsDoDia);
+      setHistorico(histBanco);
+      setFaturamento(faturamentoHojeCalculado);
+      setDiasComAgendamento(diasMarcados);
+    });
+
+    return () => unsubscribe();
+  }, [diaAtual]);
 
   const faturamentoTotal = historico.reduce((acc, item) => acc + item.valor, 0);
 
-  const finalizarAtendimento = (id, valor, compareceu) => {
-    // Aqui você também fará um UPDATE no banco de dados para mudar o status
-    setAgendamentos(prev => prev.map(ag => ag.id === id ? { ...ag, status: compareceu ? 'concluido' : 'faltou' } : ag));
-    if (compareceu) setFaturamento(prev => prev + valor);
+  // --- ATUALIZAR STATUS NO BANCO DE DADOS ---
+  const finalizarAtendimento = async (id, valor, compareceu) => {
+    try {
+      const agendamentoRef = doc(db, "agendamentos", id);
+      const novoStatus = compareceu ? 'concluido' : 'faltou';
+      
+      await updateDoc(agendamentoRef, {
+        status: novoStatus
+      });
+      // Como estamos usando onSnapshot, a tela vai se atualizar sozinha!
+    } catch (error) {
+      console.error("Erro ao atualizar o agendamento:", error);
+      alert("Erro ao atualizar o status do cliente.");
+    }
   };
 
   const openDayConfig = (day) => {
@@ -47,7 +121,7 @@ export default function DashboardCabeleireira({ onLogout }) {
                 historico.map(h => (
                   <div key={h.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition">
                     <div>
-                      <p className="font-bold text-gray-700 text-sm md:text-base">{h.cliente}</p>
+                      <p className="font-bold text-gray-700 text-sm md:text-base capitalize">{h.cliente}</p>
                       <p className="text-xs text-gray-500">{h.data}</p>
                     </div>
                     <span className="font-bold text-green-600 text-sm md:text-base">R$ {h.valor.toFixed(2)}</span>
@@ -247,17 +321,17 @@ export default function DashboardCabeleireira({ onLogout }) {
                         <span className="text-[10px] md:text-xs -mt-1 opacity-70">{ag.hora.split(':')[1]}</span>
                       </div>
                       <div className="flex-1">
-                        <p className="font-bold text-gray-800 text-base md:text-lg leading-tight">{ag.cliente}</p>
+                        <p className="font-bold text-gray-800 text-base md:text-lg leading-tight capitalize">{ag.cliente}</p>
                         <p className="text-xs md:text-sm text-gray-500 font-medium mt-0.5">{ag.servico} <span className="text-gray-300 mx-1">•</span> <span className="text-green-600 font-bold">R$ {ag.valor}</span></p>
                       </div>
                     </div>
                     
                     {ag.status === 'pendente' ? (
                       <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-end">
-                        <button onClick={() => finalizarAtendimento(ag.id, ag.valor, true)} className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center bg-green-500 text-white rounded-lg hover:bg-green-600 transition shadow-sm shrink-0">
+                        <button onClick={() => finalizarAtendimento(ag.id, ag.valor, true)} className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center bg-green-500 text-white rounded-lg hover:bg-green-600 transition shadow-sm shrink-0" title="Compareceu">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                         </button>
-                        <button onClick={() => finalizarAtendimento(ag.id, ag.valor, false)} className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center bg-white text-red-500 rounded-lg hover:bg-red-50 transition border border-red-200 shrink-0">
+                        <button onClick={() => finalizarAtendimento(ag.id, ag.valor, false)} className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center bg-white text-red-500 rounded-lg hover:bg-red-50 transition border border-red-200 shrink-0" title="Faltou">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                       </div>
