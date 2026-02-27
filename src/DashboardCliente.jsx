@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+// IMPORTAÇÕES DO FIREBASE
+import { db, auth } from './firebase';
+import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 
 export default function DashboardCliente({ onLogout }) {
   const [selectedProfissional, setSelectedProfissional] = useState(null);
@@ -7,31 +10,62 @@ export default function DashboardCliente({ onLogout }) {
   const [servicosSelecionados, setServicosSelecionados] = useState({});
   const [activeModal, setActiveModal] = useState(null);
   
-  // Agendamentos já marcados pelo cliente
+  // Agendamentos vindos do Banco de Dados
   const [meusAgendamentos, setMeusAgendamentos] = useState([]);
+  const [todosAgendamentosGerais, setTodosAgendamentosGerais] = useState([]); // Para saber quais horários estão ocupados no salão
 
-  // --- ESTADOS VAZIOS PARA O BANCO DE DADOS ---
-  const [profissionais, setProfissionais] = useState([]);
-  const [listaServicos, setListaServicos] = useState([]);
-  const [diasSemExpediente, setDiasSemExpediente] = useState([]);
-  const [horariosOcupados, setHorariosOcupados] = useState([]);
-  const [todosHorarios, setTodosHorarios] = useState(['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00']);
+  // --- DADOS FIXOS DO SALÃO ---
+  const profissionais = [
+    { id: 1, nome: 'Juliana', especialidade: 'Cachos', sigla: 'JU' },
+    { id: 2, nome: 'Camila', especialidade: 'Colorimetria', sigla: 'CA' },
+    { id: 3, nome: 'Amanda', especialidade: 'Corte e Escova', sigla: 'AM' },
+  ];
 
-  // DICA: Use o useEffect para carregar as informações quando o cliente abrir a tela
-  useEffect(() => {
-    // Exemplo:
-    // api.get('/profissionais').then(res => setProfissionais(res.data));
-    // api.get('/servicos').then(res => setListaServicos(res.data));
-  }, []);
-  
+  const listaServicos = [
+    { id: 1, nome: 'Corte Feminino', preco: 80, tempo: 60 },
+    { id: 2, nome: 'Coloração Completa', preco: 250, tempo: 120 },
+    { id: 3, nome: 'Escova Modeladora', preco: 60, tempo: 40 },
+    { id: 4, nome: 'Hidratação Profunda', preco: 90, tempo: 30 },
+  ];
+
+  const diasSemExpediente = [10, 15, 22, 23];
+  const todosHorarios = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+
   const dataAtual = new Date();
   const diaAtual = dataAtual.getDate();
   const horaAtual = dataAtual.getHours();
 
+  // --- EFEITO: BUSCAR DADOS NO BANCO EM TEMPO REAL ---
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // 1. Busca TODOS os agendamentos para bloquear horários que outras clientes já pegaram
+    const qTodos = query(collection(db, "agendamentos"));
+    const unsubTodos = onSnapshot(qTodos, (snapshot) => {
+      const geral = [];
+      snapshot.forEach(doc => geral.push({ id: doc.id, ...doc.data() }));
+      setTodosAgendamentosGerais(geral);
+    });
+
+    // 2. Busca APENAS os agendamentos deste cliente para mostrar na lista "Meus Agendamentos"
+    const qMeus = query(collection(db, "agendamentos"), where("userId", "==", user.uid));
+    const unsubMeus = onSnapshot(qMeus, (snapshot) => {
+      const meus = [];
+      snapshot.forEach(doc => meus.push({ id: doc.id, ...doc.data() }));
+      setMeusAgendamentos(meus);
+    });
+
+    return () => {
+      unsubTodos();
+      unsubMeus();
+    };
+  }, []);
+
+  // --- LÓGICAS ---
   const getHorariosOcupadosNoDia = (dia) => {
-    // Agora busca dos horários reais puxados do banco
-    let ocupados = [...horariosOcupados]; 
-    meusAgendamentos.forEach(ag => {
+    let ocupados = [];
+    todosAgendamentosGerais.forEach(ag => {
       if (ag.dia === dia) {
         ocupados.push(...ag.horariosReservados);
       }
@@ -84,15 +118,12 @@ export default function DashboardCliente({ onLogout }) {
 
       for (let i = startIndex; i < todosHorarios.length; i++) {
         const horaAtualLoop = todosHorarios[i];
-        
         if (ocupados.includes(horaAtualLoop)) break;
-        
         if (ultimaHoraAnalisada) {
           const numHoraAtual = parseInt(horaAtualLoop, 10);
           const numHoraAnterior = parseInt(ultimaHoraAnalisada, 10);
           if (numHoraAtual !== numHoraAnterior + 1) break; 
         }
-
         maxSlotsDisponiveis++;
         ultimaHoraAnalisada = horaAtualLoop;
       }
@@ -123,9 +154,16 @@ export default function DashboardCliente({ onLogout }) {
     setActiveModal(null);
   };
 
-  const handleConfirmarAgendamento = () => {
+  // SALVAR NO BANCO DE DADOS
+  const handleConfirmarAgendamento = async () => {
     if (totalValor === 0) {
       alert("Selecione pelo menos um serviço para agendar.");
+      return;
+    }
+
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Você precisa estar logado!");
       return;
     }
 
@@ -140,19 +178,29 @@ export default function DashboardCliente({ onLogout }) {
       .join(', ');
 
     const novoAgendamento = {
-      id: Date.now(),
+      userId: user.uid,              // Vincula o agendamento a este cliente
+      clienteEmail: user.email,      // Salva o email do cliente
+      clienteNome: "Cliente",        // Futuramente podemos puxar o nome real
       profissional: profissionalInfo.nome,
       dia: selectedDate,
       horaInicial: selectedHorario,
       horariosReservados: blocosReservados, 
       servicos: servicosNomes,
       valor: totalValor,
-      tempo: totalTempo
+      tempo: totalTempo,
+      status: 'pendente',
+      criadoEm: new Date().toISOString()
     };
 
-    // Aqui você vai fazer o INSERT no banco de dados
-    setMeusAgendamentos(prev => [...prev, novoAgendamento]);
-    resetarSelecao();
+    try {
+      // Inserindo na coleção "agendamentos" do Firebase
+      await addDoc(collection(db, "agendamentos"), novoAgendamento);
+      alert("Agendamento confirmado com sucesso!");
+      resetarSelecao();
+    } catch (error) {
+      console.error("Erro ao agendar:", error);
+      alert("Ocorreu um erro ao salvar o agendamento.");
+    }
   };
 
   const podeCancelar = (agendamento) => {
@@ -164,10 +212,15 @@ export default function DashboardCliente({ onLogout }) {
     return false;
   };
 
-  const cancelarAgendamento = (id) => {
-    // Aqui você vai fazer o DELETE ou UPDATE no banco de dados
+  // EXCLUIR DO BANCO DE DADOS
+  const cancelarAgendamento = async (id) => {
     if(window.confirm("Tem certeza que deseja cancelar este agendamento?")) {
-      setMeusAgendamentos(prev => prev.filter(ag => ag.id !== id));
+      try {
+        await deleteDoc(doc(db, "agendamentos", id));
+      } catch (error) {
+        console.error("Erro ao excluir:", error);
+        alert("Erro ao tentar cancelar.");
+      }
     }
   };
 
