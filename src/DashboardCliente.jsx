@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 // IMPORTAÇÕES DO FIREBASE
 import { db, auth } from './firebase';
 import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth'; // <--- Nova importação aqui!
 
 export default function DashboardCliente({ onLogout }) {
   const [selectedProfissional, setSelectedProfissional] = useState(null);
@@ -12,7 +13,7 @@ export default function DashboardCliente({ onLogout }) {
   
   // Agendamentos vindos do Banco de Dados
   const [meusAgendamentos, setMeusAgendamentos] = useState([]);
-  const [todosAgendamentosGerais, setTodosAgendamentosGerais] = useState([]); // Para saber quais horários estão ocupados no salão
+  const [todosAgendamentosGerais, setTodosAgendamentosGerais] = useState([]); 
 
   // --- DADOS FIXOS DO SALÃO ---
   const profissionais = [
@@ -35,30 +36,43 @@ export default function DashboardCliente({ onLogout }) {
   const diaAtual = dataAtual.getDate();
   const horaAtual = dataAtual.getHours();
 
-  // --- EFEITO: BUSCAR DADOS NO BANCO EM TEMPO REAL ---
+  // --- EFEITO: BUSCAR DADOS NO BANCO ESPERANDO A AUTENTICAÇÃO ---
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
+    let unsubTodos;
+    let unsubMeus;
 
-    // 1. Busca TODOS os agendamentos para bloquear horários que outras clientes já pegaram
-    const qTodos = query(collection(db, "agendamentos"));
-    const unsubTodos = onSnapshot(qTodos, (snapshot) => {
-      const geral = [];
-      snapshot.forEach(doc => geral.push({ id: doc.id, ...doc.data() }));
-      setTodosAgendamentosGerais(geral);
-    });
+    // Escuta mudanças de login. Só busca os dados QUANDO tiver certeza que o usuário está lá!
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // 1. Busca TODOS os agendamentos (Para bloquear horários ocupados)
+        const qTodos = query(collection(db, "agendamentos"));
+        unsubTodos = onSnapshot(qTodos, (snapshot) => {
+          const geral = [];
+          snapshot.forEach(doc => geral.push({ id: doc.id, ...doc.data() }));
+          setTodosAgendamentosGerais(geral);
+        });
 
-    // 2. Busca APENAS os agendamentos deste cliente para mostrar na lista "Meus Agendamentos"
-    const qMeus = query(collection(db, "agendamentos"), where("userId", "==", user.uid));
-    const unsubMeus = onSnapshot(qMeus, (snapshot) => {
-      const meus = [];
-      snapshot.forEach(doc => meus.push({ id: doc.id, ...doc.data() }));
-      setMeusAgendamentos(meus);
+        // 2. Busca APENAS os agendamentos deste cliente
+        const qMeus = query(collection(db, "agendamentos"), where("userId", "==", user.uid));
+        unsubMeus = onSnapshot(qMeus, (snapshot) => {
+          const meus = [];
+          snapshot.forEach(doc => meus.push({ id: doc.id, ...doc.data() }));
+          
+          // Ordena pela data para aparecer os mais próximos primeiro
+          meus.sort((a, b) => a.dia - b.dia);
+          
+          setMeusAgendamentos(meus);
+        });
+      } else {
+        setMeusAgendamentos([]);
+        setTodosAgendamentosGerais([]);
+      }
     });
 
     return () => {
-      unsubTodos();
-      unsubMeus();
+      unsubscribeAuth();
+      if (unsubTodos) unsubTodos();
+      if (unsubMeus) unsubMeus();
     };
   }, []);
 
@@ -178,9 +192,9 @@ export default function DashboardCliente({ onLogout }) {
       .join(', ');
 
     const novoAgendamento = {
-      userId: user.uid,              // Vincula o agendamento a este cliente
-      clienteEmail: user.email,      // Salva o email do cliente
-      clienteNome: "Cliente",        // Futuramente podemos puxar o nome real
+      userId: user.uid,             
+      clienteEmail: user.email,      
+      clienteNome: "Cliente",        
       profissional: profissionalInfo.nome,
       dia: selectedDate,
       horaInicial: selectedHorario,
@@ -193,7 +207,6 @@ export default function DashboardCliente({ onLogout }) {
     };
 
     try {
-      // Inserindo na coleção "agendamentos" do Firebase
       await addDoc(collection(db, "agendamentos"), novoAgendamento);
       alert("Agendamento confirmado com sucesso!");
       resetarSelecao();
@@ -291,6 +304,7 @@ export default function DashboardCliente({ onLogout }) {
               </div>
             </div>
 
+            {/* SESSÃO: MEUS AGENDAMENTOS */}
             {meusAgendamentos.length > 0 && (
               <div className="mt-10 animate-fade-in">
                 <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -313,7 +327,7 @@ export default function DashboardCliente({ onLogout }) {
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
                               <span className="text-gray-500 font-medium">Profissional: <span className="text-gray-700">{ag.profissional}</span></span>
                               <span className="text-gray-300">•</span>
-                              <span className="text-gray-500 font-medium">Horários: <span className="text-gray-700">{ag.horariosReservados.join(', ')}</span></span>
+                              <span className="text-gray-500 font-medium">Horário: <span className="text-gray-700">{ag.horaInicial}</span></span>
                               <span className="text-gray-300">•</span>
                               <span className="text-gray-500 font-medium">Duração: <span className="text-gray-700">{formatarTempo(ag.tempo)}</span></span>
                               <span className="text-gray-300">•</span>
