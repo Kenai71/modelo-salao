@@ -1,28 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-// RECEBENDO A FUNÇÃO onLogout AQUI
 export default function DashboardCabeleireira({ onLogout }) {
-  const [faturamento, setFaturamento] = useState(0);
   const [activeModal, setActiveModal] = useState(null); 
   const [selectedDate, setSelectedDate] = useState(null);
 
-  const [agendamentos, setAgendamentos] = useState([
-    { id: 1, cliente: 'Ana Silva', data: '20/10/2026', hora: '14:00', servico: 'Corte e Escova', valor: 120, status: 'pendente' },
-    { id: 2, cliente: 'Mariana Costa', data: '20/10/2026', hora: '15:30', servico: 'Coloração', valor: 250, status: 'pendente' },
-    { id: 3, cliente: 'Cláudia Raia', data: '20/10/2026', hora: '16:45', servico: 'Hidratação', valor: 90, status: 'pendente' }
-  ]);
-  
-  const historico = [
-    { id: 1, cliente: 'Juliana Paes', data: '18/10/2026', valor: 150 },
-    { id: 2, cliente: 'Bruna Marquezine', data: '19/10/2026', valor: 300 },
-    { id: 3, cliente: 'Paolla Oliveira', data: '19/10/2026', valor: 80 },
-    { id: 4, cliente: 'Larissa Manoela', data: '17/10/2026', valor: 450 },
-  ];
+  // --- ESTADOS VAZIOS PARA O BANCO DE DADOS ---
+  const [faturamento, setFaturamento] = useState(0);
+  const [agendamentos, setAgendamentos] = useState([]);
+  const [historico, setHistorico] = useState([]);
+  const [diasComAgendamento, setDiasComAgendamento] = useState([]);
+
+  // DICA: Use este useEffect para buscar os dados do seu banco quando a tela carregar
+  useEffect(() => {
+    // Exemplo:
+    // buscarAgendamentosDoBanco().then(dados => setAgendamentos(dados));
+    // buscarHistoricoDoBanco().then(dados => setHistorico(dados));
+  }, []);
 
   const faturamentoTotal = historico.reduce((acc, item) => acc + item.valor, 0);
-  const diasComAgendamento = [15, 18, 20, 22, 25];
 
   const finalizarAtendimento = (id, valor, compareceu) => {
+    // Aqui você também fará um UPDATE no banco de dados para mudar o status
     setAgendamentos(prev => prev.map(ag => ag.id === id ? { ...ag, status: compareceu ? 'concluido' : 'faltou' } : ag));
     if (compareceu) setFaturamento(prev => prev + valor);
   };
@@ -43,15 +41,19 @@ export default function DashboardCabeleireira({ onLogout }) {
               <span className="text-xl md:text-2xl font-black text-rose-600">R$ {faturamentoTotal.toFixed(2)}</span>
             </div>
             <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-              {historico.map(h => (
-                <div key={h.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition">
-                  <div>
-                    <p className="font-bold text-gray-700 text-sm md:text-base">{h.cliente}</p>
-                    <p className="text-xs text-gray-500">{h.data}</p>
+              {historico.length === 0 ? (
+                <p className="text-center text-gray-500 py-4">Nenhum histórico encontrado.</p>
+              ) : (
+                historico.map(h => (
+                  <div key={h.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition">
+                    <div>
+                      <p className="font-bold text-gray-700 text-sm md:text-base">{h.cliente}</p>
+                      <p className="text-xs text-gray-500">{h.data}</p>
+                    </div>
+                    <span className="font-bold text-green-600 text-sm md:text-base">R$ {h.valor.toFixed(2)}</span>
                   </div>
-                  <span className="font-bold text-green-600 text-sm md:text-base">R$ {h.valor.toFixed(2)}</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         );
@@ -169,67 +171,33 @@ export default function DashboardCabeleireira({ onLogout }) {
 
   return (
     <div className="flex bg-gray-50 min-h-screen font-sans w-full relative">
-      
-      {/* Sidebar Lateral FIXA */}
-      <aside className="fixed left-0 top-0 bottom-0 w-[70px] md:w-20 bg-white border-r border-gray-200 flex flex-col items-center pt-6 pb-6 gap-4 md:gap-6 shadow-sm z-20">
+      <aside className="fixed left-0 top-0 bottom-0 w-[70px] md:w-20 bg-white border-r border-gray-200 flex flex-col items-center pt-6 pb-6 gap-4 md:gap-6 shadow-sm z-20 overflow-x-hidden">
         <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-rose-400 to-rose-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg text-lg md:text-xl mb-2 md:mb-4 shrink-0">
           SC
         </div>
         
-        <nav className="flex flex-col gap-3 md:gap-4 flex-1 w-full px-2 overflow-y-auto custom-scrollbar">
+        <nav className="flex flex-col gap-3 md:gap-4 flex-1 w-full px-2 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <button onClick={() => setActiveModal(null)} className="w-full flex justify-center p-2.5 md:p-3 text-rose-600 bg-rose-50 rounded-xl transition group relative">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="hidden md:block absolute left-16 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Início</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
           </button>
-
           <button onClick={() => setActiveModal('wallet')} className="w-full flex justify-center p-2.5 md:p-3 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition group relative">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-            <span className="hidden md:block absolute left-16 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Faturamento</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
           </button>
-
           <button onClick={() => setActiveModal('clock')} className="w-full flex justify-center p-2.5 md:p-3 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition group relative">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="hidden md:block absolute left-16 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Dias Agendados</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           </button>
-
           <button onClick={() => setActiveModal('calendar')} className="w-full flex justify-center p-2.5 md:p-3 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition group relative">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span className="hidden md:block absolute left-16 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Configurar Expediente</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
           </button>
-          
           <div className="flex-1"></div>
-
           <button onClick={() => setActiveModal('addUser')} className="w-full flex justify-center p-2.5 md:p-3 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition group relative">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-            <span className="hidden md:block absolute left-16 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Adicionar Perfil</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
           </button>
-
           <button onClick={() => setActiveModal('changePassword')} className="w-full flex justify-center p-2.5 md:p-3 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition group relative">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            <span className="hidden md:block absolute left-16 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Trocar Senha</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
           </button>
-
-          {/* AQUI ESTÁ A MÁGICA DO BOTÃO DE SAIR - Chama a função onLogout */}
-          <button 
-            onClick={onLogout} 
-            className="w-full flex justify-center p-2.5 md:p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition group relative mb-4 md:mb-6"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span className="hidden md:block absolute left-16 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">Sair da Conta</span>
+          <button onClick={onLogout} className="w-full flex justify-center p-2.5 md:p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition group relative mb-4 md:mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           </button>
         </nav>
       </aside>
@@ -245,12 +213,9 @@ export default function DashboardCabeleireira({ onLogout }) {
             <div 
               onClick={() => setActiveModal('wallet')}
               className="bg-white px-4 md:px-6 py-3 md:py-4 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 md:gap-4 w-full md:w-auto cursor-pointer hover:shadow-md hover:border-rose-200 transition"
-              title="Clique para ver o histórico"
             >
               <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
               <div>
                 <p className="text-xs md:text-sm text-gray-500 font-bold uppercase tracking-wider">Faturamento Hoje</p>
@@ -262,9 +227,7 @@ export default function DashboardCabeleireira({ onLogout }) {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-4 md:p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h2 className="text-base md:text-lg font-bold text-gray-800 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 Agendamentos do Dia
               </h2>
               <span className="bg-rose-100 text-rose-700 px-2 py-1 md:px-3 md:py-1 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider">
@@ -273,48 +236,39 @@ export default function DashboardCabeleireira({ onLogout }) {
             </div>
             
             <div className="divide-y divide-gray-50">
-              {agendamentos.map((ag) => (
-                <div key={ag.id} className="p-4 md:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-50/80 transition duration-200">
-                  <div className="flex gap-3 md:gap-4 items-center w-full sm:w-auto">
-                    <div className="w-12 h-12 md:w-14 md:h-14 bg-rose-50 text-rose-600 rounded-xl flex flex-col items-center justify-center font-bold border border-rose-100 shrink-0">
-                      <span className="text-xs md:text-sm">{ag.hora.split(':')[0]}</span>
-                      <span className="text-[10px] md:text-xs -mt-1 opacity-70">{ag.hora.split(':')[1]}</span>
+              {agendamentos.length === 0 ? (
+                 <p className="text-center text-gray-500 py-10">Não há agendamentos para hoje.</p>
+              ) : (
+                agendamentos.map((ag) => (
+                  <div key={ag.id} className="p-4 md:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-50/80 transition duration-200">
+                    <div className="flex gap-3 md:gap-4 items-center w-full sm:w-auto">
+                      <div className="w-12 h-12 md:w-14 md:h-14 bg-rose-50 text-rose-600 rounded-xl flex flex-col items-center justify-center font-bold border border-rose-100 shrink-0">
+                        <span className="text-xs md:text-sm">{ag.hora.split(':')[0]}</span>
+                        <span className="text-[10px] md:text-xs -mt-1 opacity-70">{ag.hora.split(':')[1]}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-800 text-base md:text-lg leading-tight">{ag.cliente}</p>
+                        <p className="text-xs md:text-sm text-gray-500 font-medium mt-0.5">{ag.servico} <span className="text-gray-300 mx-1">•</span> <span className="text-green-600 font-bold">R$ {ag.valor}</span></p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-800 text-base md:text-lg leading-tight">{ag.cliente}</p>
-                      <p className="text-xs md:text-sm text-gray-500 font-medium mt-0.5">{ag.servico} <span className="text-gray-300 mx-1">•</span> <span className="text-green-600 font-bold">R$ {ag.valor}</span></p>
-                    </div>
+                    
+                    {ag.status === 'pendente' ? (
+                      <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-end">
+                        <button onClick={() => finalizarAtendimento(ag.id, ag.valor, true)} className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center bg-green-500 text-white rounded-lg hover:bg-green-600 transition shadow-sm shrink-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        </button>
+                        <button onClick={() => finalizarAtendimento(ag.id, ag.valor, false)} className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center bg-white text-red-500 rounded-lg hover:bg-red-50 transition border border-red-200 shrink-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <span className={`w-full sm:w-auto justify-center px-3 md:px-4 py-2.5 md:py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1 ${ag.status === 'concluido' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                        {ag.status === 'concluido' ? '✓ Finalizado' : '✕ Faltou'}
+                      </span>
+                    )}
                   </div>
-                  
-                  {ag.status === 'pendente' ? (
-                    <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-end">
-                      <button 
-                        onClick={() => finalizarAtendimento(ag.id, ag.valor, true)}
-                        className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center bg-green-500 text-white rounded-lg hover:bg-green-600 transition shadow-sm shrink-0"
-                        title="Compareceu"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </button>
-
-                      <button 
-                        onClick={() => finalizarAtendimento(ag.id, ag.valor, false)}
-                        className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center bg-white text-red-500 rounded-lg hover:bg-red-50 transition border border-red-200 shrink-0"
-                        title="Faltou"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ) : (
-                    <span className={`w-full sm:w-auto justify-center px-3 md:px-4 py-2.5 md:py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1 ${ag.status === 'concluido' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                      {ag.status === 'concluido' ? '✓ Finalizado' : '✕ Faltou'}
-                    </span>
-                  )}
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -323,13 +277,8 @@ export default function DashboardCabeleireira({ onLogout }) {
       {activeModal && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-[95%] sm:w-full max-w-md relative scale-100 transition-transform max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <button 
-              onClick={() => setActiveModal(null)}
-              className="absolute top-3 md:top-4 right-3 md:right-4 text-gray-400 hover:text-gray-800 p-1.5 rounded-full hover:bg-gray-100 transition bg-white z-10"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <button onClick={() => setActiveModal(null)} className="absolute top-3 md:top-4 right-3 md:right-4 text-gray-400 hover:text-gray-800 p-1.5 rounded-full hover:bg-gray-100 transition bg-white z-10">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
             {renderModalContent()}
           </div>
