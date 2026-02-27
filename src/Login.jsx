@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 
-export default function Login() {
+// Recebemos a função onLogin que foi passada pelo App.jsx
+export default function Login({ onLogin }) {
   const [isCadastro, setIsCadastro] = useState(false);
   
-  // Estados para controlar os dados do formulário
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
   
-  // Estados para feedback da interface
   const [erro, setErro] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Limpa os campos e erros ao trocar entre Login e Cadastro
   const toggleModo = () => {
     setIsCadastro(!isCadastro);
     setErro('');
@@ -24,7 +22,6 @@ export default function Login() {
     e.preventDefault();
     setErro('');
 
-    // Validação simples
     if (isCadastro && senha !== confirmarSenha) {
       setErro('As senhas não coincidem.');
       return;
@@ -33,12 +30,27 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      // Aqui entraria a chamada real para sua API
-      // Simulando um delay de rede (1.5 segundos)
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Simulando o tempo de consulta no banco de dados
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      console.log('Dados enviados:', { email, senha });
-      alert(isCadastro ? 'Conta criada com sucesso!' : 'Login realizado com sucesso!');
+      if (!isCadastro) {
+        // === REGRA DE LOGIN DA CABELEIREIRA ===
+        if (email === 'cabeleleira@gmail.com' && senha === '12345678') {
+          onLogin('cabelereira'); 
+        } 
+        else if (email === 'cabeleleira@gmail.com' && senha !== '12345678') {
+          setErro('Senha incorreta.');
+          setIsLoading(false);
+          return;
+        } 
+        // Se não for a cabeleireira, entra como cliente normal
+        else {
+          onLogin('cliente');
+        }
+      } else {
+        // Se a pessoa estiver criando uma conta, vai direto pro painel do cliente
+        onLogin('cliente');
+      }
       
     } catch (err) {
       setErro('Ocorreu um erro. Tente novamente.');
@@ -50,12 +62,11 @@ export default function Login() {
   return (
     <div className="flex items-center justify-center min-h-[80vh]">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-rose-100">
-        <h2 className="text-3xl font-bold text-center text-rose-600 mb-6 font-serif">
+        <h2 className="text-3xl font-bold text-center text-rose-600 mb-6 font-serif tracking-wide">
           {isCadastro ? 'Criar Conta' : 'Bem-vinda de volta!'}
         </h2>
         
         <form className="space-y-4" onSubmit={handleSubmit}>
-          {/* Exibição de Erro */}
           {erro && (
             <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-200">
               {erro}
@@ -72,7 +83,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+              className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition font-sans"
               placeholder="seu@email.com"
             />
           </div>
@@ -87,7 +98,7 @@ export default function Login() {
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               required
-              className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+              className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition font-sans"
               placeholder="••••••••"
             />
           </div>
@@ -103,7 +114,7 @@ export default function Login() {
                 value={confirmarSenha}
                 onChange={(e) => setConfirmarSenha(e.target.value)}
                 required={isCadastro}
-                className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+                className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition font-sans"
                 placeholder="••••••••"
               />
             </div>
@@ -112,7 +123,7 @@ export default function Login() {
           <button 
             type="submit"
             disabled={isLoading}
-            className={`w-full text-white font-bold py-3 rounded-lg transition shadow-md mt-4 
+            className={`w-full text-white font-semibold tracking-wide py-3 rounded-lg transition shadow-md mt-6 
               ${isLoading ? 'bg-rose-400 cursor-not-allowed' : 'bg-rose-500 hover:bg-rose-600'}`}
           >
             {isLoading 
