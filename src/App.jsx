@@ -1,25 +1,35 @@
-import React, { useState } from 'react';
-import Login from './Login';
-import DashboardCabeleireira from './DashboardCabeleireira';
-import DashboardCliente from './DashboardCliente';
+import { useState } from 'react'
+import reactLogo from './assets/react.svg'
+import viteLogo from '/vite.svg'
+import './App.css'
 
-export default function App() {
-  const [telaAtual, setTelaAtual] = useState('login'); // 'login', 'cabeleireira', 'cliente'
+function App() {
+  const [count, setCount] = useState(0)
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans">
-      {/* Navegação temporária para testes */}
-      <nav className="bg-rose-600 p-4 flex justify-center gap-4 text-white shadow-md">
-        <button onClick={() => setTelaAtual('login')} className="hover:underline">Tela de Login</button>
-        <button onClick={() => setTelaAtual('cabeleireira')} className="hover:underline">Visão Cabeleireira</button>
-        <button onClick={() => setTelaAtual('cliente')} className="hover:underline">Visão Cliente</button>
-      </nav>
-
-      <main className="p-4 md:p-8">
-        {telaAtual === 'login' && <Login />}
-        {telaAtual === 'cabeleireira' && <DashboardCabeleireira />}
-        {telaAtual === 'cliente' && <DashboardCliente />}
-      </main>
-    </div>
-  );
+    <>
+      <div>
+        <a href="https://vite.dev" target="_blank">
+          <img src={viteLogo} className="logo" alt="Vite logo" />
+        </a>
+        <a href="https://react.dev" target="_blank">
+          <img src={reactLogo} className="logo react" alt="React logo" />
+        </a>
+      </div>
+      <h1>Vite + React</h1>
+      <div className="card">
+        <button onClick={() => setCount((count) => count + 1)}>
+          count is {count}
+        </button>
+        <p>
+          Edit <code>src/App.jsx</code> and save to test HMR
+        </p>
+      </div>
+      <p className="read-the-docs">
+        Click on the Vite and React logos to learn more
+      </p>
+    </>
+  )
 }
+
+export default App
