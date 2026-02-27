@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 
-// Recebemos a função onLogin que foi passada pelo App.jsx
 export default function Login({ onLogin }) {
   const [isCadastro, setIsCadastro] = useState(false);
   
@@ -30,25 +29,14 @@ export default function Login({ onLogin }) {
     setIsLoading(true);
 
     try {
-      // Simulando o tempo de consulta no banco de dados
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Simula o tempo de carregar da internet
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       
-      if (!isCadastro) {
-        // === REGRA DE LOGIN DA CABELEIREIRA ===
-        if (email === 'cabeleleira@gmail.com' && senha === '12345678') {
-          onLogin('cabelereira'); 
-        } 
-        else if (email === 'cabeleleira@gmail.com' && senha !== '12345678') {
-          setErro('Senha incorreta.');
-          setIsLoading(false);
-          return;
-        } 
-        // Se não for a cabeleireira, entra como cliente normal
-        else {
-          onLogin('cliente');
-        }
+      // REGRA MOCKADA: Se o email tiver 'admin' ou 'salao', entra como cabeleireira. 
+      // Se não, entra como cliente.
+      if (email.includes('admin') || email.includes('salao')) {
+        onLogin('cabeleireira');
       } else {
-        // Se a pessoa estiver criando uma conta, vai direto pro painel do cliente
         onLogin('cliente');
       }
       
@@ -60,9 +48,9 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[80vh]">
+    <div className="flex items-center justify-center min-h-[100dvh]">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-rose-100">
-        <h2 className="text-3xl font-bold text-center text-rose-600 mb-6 font-serif tracking-wide">
+        <h2 className="text-3xl font-bold text-center text-rose-600 mb-6 font-serif">
           {isCadastro ? 'Criar Conta' : 'Bem-vinda de volta!'}
         </h2>
         
@@ -74,47 +62,42 @@ export default function Login({ onLogin }) {
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
             <input 
               id="email"
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition font-sans"
-              placeholder="seu@email.com"
+              className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+              placeholder="admin@salao.com"
             />
+            <p className="text-[10px] text-gray-400 mt-1">Dica: Use "admin" no email para ver a tela da profissional.</p>
           </div>
 
           <div>
-            <label htmlFor="senha" className="block text-sm font-medium text-gray-700">
-              Senha
-            </label>
+            <label htmlFor="senha" className="block text-sm font-medium text-gray-700">Senha</label>
             <input 
               id="senha"
               type="password" 
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               required
-              className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition font-sans"
+              className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition"
               placeholder="••••••••"
             />
           </div>
 
           {isCadastro && (
             <div>
-              <label htmlFor="confirmarSenha" className="block text-sm font-medium text-gray-700">
-                Confirmar Senha
-              </label>
+              <label htmlFor="confirmarSenha" className="block text-sm font-medium text-gray-700">Confirmar Senha</label>
               <input 
                 id="confirmarSenha"
                 type="password" 
                 value={confirmarSenha}
                 onChange={(e) => setConfirmarSenha(e.target.value)}
                 required={isCadastro}
-                className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition font-sans"
+                className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-rose-500 focus:border-rose-500 outline-none transition"
                 placeholder="••••••••"
               />
             </div>
@@ -123,12 +106,10 @@ export default function Login({ onLogin }) {
           <button 
             type="submit"
             disabled={isLoading}
-            className={`w-full text-white font-semibold tracking-wide py-3 rounded-lg transition shadow-md mt-6 
+            className={`w-full text-white font-bold py-3 rounded-lg transition shadow-md mt-4 
               ${isLoading ? 'bg-rose-400 cursor-not-allowed' : 'bg-rose-500 hover:bg-rose-600'}`}
           >
-            {isLoading 
-              ? 'Aguarde...' 
-              : (isCadastro ? 'Cadastrar' : 'Entrar')}
+            {isLoading ? 'Aguarde...' : (isCadastro ? 'Cadastrar' : 'Entrar')}
           </button>
         </form>
 
